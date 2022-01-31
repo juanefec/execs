@@ -1,24 +1,24 @@
 # execs
 
-This is a go package that offers a way to do things and handle them in a concurrent way.
-
+Concurrent action execution and result handling.
 
 ```go
-Executor(do(interface{}) interface{}, handle(interface{})) (fire(interface{}), kill())
+Executor(action(interface{}) interface{}, handle(interface{})) (fire(interface{}), kill())
 ```
- - `func do(interface{}) interface{}` executed concurrently on `fire(interface{})`
- - `func handle(interface{})` the result `do(interface{}) interface{}`
- - `func fire(interface{})` a message, argument of `do(interface{}) interface{}`
- - `func kill()` blocks until every message has been fired and handled
+ - `func action(interface{}) interface{}` is the action executed concurrently on `fire(interface{})`.
+ - `func handle(interface{})` takes the result of `action(interface{}) interface{}` and executes concurrently.
+ - `func fire(interface{})` pushes the data to execute the action concurrently.
+ - `func kill()` blocks until every action has been done and handled, fireing after kill will panic.
 
  Example:
  ```go
- // Create a Sub
-
-// Handle a new execution type
-fireSaveData, killSaveData := execs.Executor(db.SaveDB, analytic.RecordSaveDB)
-defer killSaveData()
+// Run an Executor
+// Here you dont care enough to wait for a database save,
+// so you just fire saves when needed and a handler takes care of the results
+save, endSave := execs.Executor(db.SaveDB, bussines.AfterSaveDB)
+defer endSave()
 
 // this function can be called from anywhere
-fireSaveData(db.User{0, "john"})
+save(db.User{0, "john"})
  ```
+ 
