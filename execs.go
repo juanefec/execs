@@ -1,6 +1,9 @@
 package execs
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 // Executor takes an action and a handler that is executed after the action
 // it returns Fire and Kill funtions to execute the action and handle them in a fully concurrent way
@@ -49,4 +52,34 @@ func Executor(action func(interface{}) interface{}, handle func(interface{})) (f
 	go sender()
 
 	return
+}
+
+func TimedLoop(loop func(end <-chan struct{}), duration time.Duration) {
+	var (
+		endTick = time.NewTicker(duration)
+		end     = make(chan struct{})
+	)
+
+	go loop(end)
+
+	<-endTick.C
+	end <- struct{}{}
+}
+
+func Repeat(action func(i int), interval time.Duration) func(end <-chan struct{}) {
+	var (
+		intervalTick = time.NewTicker(interval)
+		i            = 0
+	)
+	return func(end <-chan struct{}) {
+		for {
+			select {
+			case <-intervalTick.C:
+				action(i)
+				i++
+			case <-end:
+				return
+			}
+		}
+	}
 }

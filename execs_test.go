@@ -44,7 +44,7 @@ func (tc *testClient) Do(i interface{}) interface{} {
 	return "this was a succes!"
 }
 
-func TestT(t *testing.T) {
+func TestExecutor(t *testing.T) {
 	tc := &testClient{make(chan string), make([]string, 0), make(chan struct{})}
 	go tc.run()
 
@@ -115,9 +115,38 @@ func TestT(t *testing.T) {
 	equal(t, len(errs), 400)
 }
 
+func TestRepeatTimedLoop(t *testing.T) {
+	var (
+		reciver = make(chan string)
+		store   = []string{}
+		end     = make(chan struct{})
+	)
+
+	go func() {
+		for m := range reciver {
+			store = append(store, m)
+		}
+		end <- struct{}{}
+	}()
+
+	n := time.Now()
+	execs.TimedLoop(execs.Repeat(func(i int) {
+		reciver <- fmt.Sprintf("message number %v", i)
+	}, time.Millisecond*100), time.Second*2)
+	d := time.Since(n)
+
+	dd := time.Second * time.Duration(d.Seconds())
+
+	close(reciver)
+	<-end
+
+	equal(t, dd, time.Second*2)
+	equal(t, 20, len(store))
+}
+
 func equal(t *testing.T, e, v interface{}) {
 	t.Helper()
 	if e != v {
-		t.Fail()
+		t.Error(e, " != ", v)
 	}
 }
