@@ -54,7 +54,7 @@ func Executor(action func(interface{}) interface{}, handle func(interface{})) (f
 	return
 }
 
-func TimedLoop(loop func(end <-chan struct{}), duration time.Duration) {
+func TimedLoop(loop func(end chan struct{}), duration time.Duration) {
 	var (
 		endTick = time.NewTicker(duration)
 		end     = make(chan struct{})
@@ -64,20 +64,31 @@ func TimedLoop(loop func(end <-chan struct{}), duration time.Duration) {
 
 	<-endTick.C
 	end <- struct{}{}
+	<-end
 }
 
-func Repeat(action func(i int), interval time.Duration) func(end <-chan struct{}) {
+func Repeat(action func(i int), interval time.Duration) func(end chan struct{}) {
 	var (
 		intervalTick = time.NewTicker(interval)
 		i            = 0
+		wg           = sync.WaitGroup{}
 	)
-	return func(end <-chan struct{}) {
+	return func(end chan struct{}) {
 		for {
 			select {
 			case <-intervalTick.C:
-				action(i)
+				wg.Add(1)
+				go func(i int) {
+					action(i)
+					wg.Done()
+				}(i)
 				i++
 			case <-end:
+				wg.Wait()
+				// Closing a channel on the reciving end is not recomended.
+				// but in this case this close is expected by the ender to
+				// confirm is has ended every execution it has already started.
+				close(end)
 				return
 			}
 		}
